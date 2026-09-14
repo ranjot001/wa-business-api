@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+coverage
+pnpm-lock.yaml
+packages/db/prisma/migrations
+
+# docs and task files are hand formatted
+*.md

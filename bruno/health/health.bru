@@ -1,0 +1,28 @@
+meta {
+  name: Health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/health
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+}
+
+assert {
+  res.status: eq 200
+  res.body.status: eq ok
+}
+
+docs {
+  Liveness. Answers 200 for as long as the process is up and touches no
+  external dependency, which is what makes it the right target for a platform
+  healthcheck.
+
+  Returns { status, uptime, timestamp }.
+}

@@ -1,0 +1,28 @@
+meta {
+  name: Ready
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/ready
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+}
+
+assert {
+  res.status: eq 200
+  res.body.postgres: eq ok
+  res.body.redis: eq ok
+}
+
+docs {
+  Readiness. Pings Postgres and Redis and returns { postgres, redis }.
+
+  Answers 503 with the same body when either dependency is down, so the
+  assertions here fail loudly rather than passing on a degraded API.
+}

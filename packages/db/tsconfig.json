@@ -5,6 +5,9 @@
     "moduleResolution": "Node",
     "outDir": "dist",
     "rootDir": "src",
+    // Inside outDir so deleting dist also drops the incremental cache.
+    // A stale buildinfo beside a deleted dist makes tsc emit nothing.
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],

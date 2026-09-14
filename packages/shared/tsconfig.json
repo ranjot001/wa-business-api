@@ -4,7 +4,10 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Inside outDir so deleting dist also drops the incremental cache.
+    // A stale buildinfo beside a deleted dist makes tsc emit nothing.
+    "tsBuildInfoFile": "./dist/.tsbuildinfo"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

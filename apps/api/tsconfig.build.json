@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    // Lives inside outDir so `nest start`'s deleteOutDir removes it too.
+    // A stale buildinfo next to a deleted dist makes tsc emit nothing.
+    "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts", "vitest.config.ts"]
+}

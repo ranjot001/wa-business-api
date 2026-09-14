@@ -1,0 +1,13 @@
+{
+  "extends": "@crm/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "types": ["node", "vitest/globals"],
+    "strictPropertyInitialization": false
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

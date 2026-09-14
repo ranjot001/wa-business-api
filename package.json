@@ -6,7 +6,29 @@
   "engines": {
     "node": ">=22"
   },
+  "scripts": {
+    "up": "docker compose up -d",
+    "down": "docker compose down",
+    "reset": "docker compose down -v && docker compose up -d && sleep 5 && pnpm db:migrate",
+    "build:packages": "pnpm --filter @crm/shared --filter @crm/db build",
+    "dev": "pnpm build:packages && concurrently -n api,worker,web -c blue,magenta,green \"pnpm --filter @crm/api dev\" \"pnpm --filter @crm/worker dev\" \"pnpm --filter @crm/web dev\"",
+    "build": "pnpm -r build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @crm/db generate",
+    "db:migrate": "pnpm --filter @crm/db migrate",
+    "db:deploy": "pnpm --filter @crm/db deploy",
+    "db:studio": "pnpm --filter @crm/db studio",
+    "db:seed": "pnpm --filter @crm/db seed"
+  },
   "devDependencies": {
+    "@crm/config": "workspace:*",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
     "typescript": "^5.7.2"
   }
 }

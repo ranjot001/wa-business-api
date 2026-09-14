@@ -1,0 +1,31 @@
+// Prisma schema for the WhatsApp CRM.
+// One schema, one migration history, shared by apps/api and apps/worker.
+//
+// Conventions (see CLAUDE.md):
+//   - every business table has workspace_id
+//   - ids are uuid, timestamps are timestamptz
+//   - Postgres columns are snake_case, TypeScript fields camelCase via @map
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Models are added in later tasks. The initial migration is intentionally empty.
+
+/// Baseline placeholder.
+///
+/// Prisma refuses to generate a client from a schema with no models, and both
+/// apps import PrismaClient from @crm/db, so the schema cannot be literally
+/// empty. This table carries no product meaning: task 02 introduces the real
+/// workspace and user models and this one gets dropped in that migration.
+model SchemaPlaceholder {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("schema_placeholder")
+}

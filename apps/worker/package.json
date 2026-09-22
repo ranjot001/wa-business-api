@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/main.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "pnpm --filter \"@crm/worker^...\" run build && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",

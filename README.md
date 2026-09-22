@@ -46,7 +46,7 @@ If something else on your machine already listens on 5432 or 6379, set
 | `pnpm up` / `down` | start / stop the docker services                    |
 | `pnpm reset`       | drop the volumes, recreate, migrate                 |
 | `pnpm dev`         | build the workspace packages, then run all three apps |
-| `pnpm build`       | build everything                                    |
+| `pnpm build`       | build everything, one package at a time             |
 | `pnpm lint`        | eslint across the workspace                         |
 | `pnpm typecheck`   | tsc --noEmit in every package                       |
 | `pnpm test`        | vitest in every package                             |
@@ -84,6 +84,11 @@ do not override the committed values.
 - Build is `pnpm --filter @crm/<app>... run build`. The `...` suffix selects the
   app and its workspace dependencies, so `@crm/shared` and `@crm/db` (including
   `prisma generate`) build first, in order.
+- Each app's own `build` script also builds its workspace dependencies first,
+  via `pnpm --filter "@crm/<app>^..." run build`. The `^...` prefix selects the
+  dependencies without the app itself. That makes a plain
+  `pnpm --filter @crm/api build` work on any host, including one that ignores
+  this file and runs the bare command.
 - The builder is Railpack, which resolved Node 22 and pnpm 10.18.0 correctly
   from `.nvmrc` and the `packageManager` field. It runs its own
   `pnpm install --frozen-lockfile` before the build command, so the build

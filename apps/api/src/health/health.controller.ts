@@ -1,5 +1,6 @@
 import { Controller, Get, HttpCode, HttpStatus, Res } from '@nestjs/common';
 import type { Response } from 'express';
+import { Public } from '../common/decorators/public.decorator';
 import { HealthService, type ReadinessReport } from './health.service';
 
 interface LivenessReport {
@@ -8,7 +9,12 @@ interface LivenessReport {
   timestamp: string;
 }
 
+/**
+ * Public. The platform healthcheck has no access token, and a liveness probe
+ * that needs one tells you nothing useful about the process.
+ */
 @Controller()
+@Public()
 export class HealthController {
   constructor(private readonly health: HealthService) {}
 

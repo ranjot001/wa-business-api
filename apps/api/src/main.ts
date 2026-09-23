@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
@@ -20,10 +21,15 @@ async function bootstrap(): Promise<void> {
 
   app.use(helmet());
 
+  // The refresh token travels in an httpOnly cookie, so the auth routes need
+  // the parsed cookie jar on the request.
+  app.use(cookieParser());
+
   app.enableCors({
     origin: parseOrigins(config.get('WEB_ORIGIN', { infer: true })),
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Workspace-Id', 'X-Request-Id'],
   });
 
   app.useGlobalPipes(

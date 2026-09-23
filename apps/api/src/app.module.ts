@@ -1,11 +1,20 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { validateEnv, type Env } from './config/env';
+import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { HealthModule } from './health/health.module';
+import { InvitationsModule } from './invitations/invitations.module';
+import { MembersModule } from './members/members.module';
+import { MeModule } from './me/me.module';
 import { RedisModule } from './redis/redis.module';
+import { WorkspacesModule } from './workspaces/workspaces.module';
 
 @Module({
   imports: [
@@ -51,8 +60,21 @@ import { RedisModule } from './redis/redis.module';
         };
       },
     }),
+    // 10 requests a minute per IP. Applied by ThrottlerGuard on the auth
+    // routes only, not globally: the inbox polls far harder than this.
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
     RedisModule,
     HealthModule,
+    AuditModule,
+    AuthModule,
+    MeModule,
+    WorkspacesModule,
+    MembersModule,
+    InvitationsModule,
+  ],
+  providers: [
+    // Every route needs an access token unless it is marked @Public().
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
 export class AppModule {}

@@ -119,6 +119,7 @@ api:
 | `NODE_ENV`     | no       | `development` | `production`                                  |
 | `WEB_ORIGIN`   | no       | `http://localhost:3000` | the public web URL, comma separated |
 | `LOG_LEVEL`    | no       | `info`        | `info`                                        |
+| `REFRESH_COOKIE_PATH` | no | `/`         | `/` (the web app proxies the api)             |
 | `PORT`         | no       | `4000`        | injected by Railway, do not set it            |
 
 `DATABASE_URL` and `REDIS_URL` must parse as URLs. `WEB_ORIGIN` defaults to
@@ -139,14 +140,44 @@ The worker has no `PORT`.
 
 web:
 
-| Variable              | Required | Default                 | Production value                   |
-| --------------------- | -------- | ----------------------- | ---------------------------------- |
-| `NEXT_PUBLIC_API_URL` | no       | `http://localhost:4000` | the public api URL, no `/v1` suffix |
+| Variable              | Required | Default                 | Production value                    |
+| --------------------- | -------- | ----------------------- | ----------------------------------- |
+| `API_URL`             | no       | `http://localhost:4000` | the public api URL, no `/v1` suffix |
+| `NEXT_PUBLIC_API_URL` | no       | unset                   | leave unset                         |
 | `PORT`                | no       | `3000`                  | injected by Railway, do not set it  |
 
-There is no zod schema in web. `NEXT_PUBLIC_API_URL` is inlined into the bundle
-at build time, so changing it requires a rebuild, not just a restart, and the
-localhost default ships silently if it is missing.
+There is no zod schema in web. `API_URL` is read on the server, at request
+time, so changing it takes a restart and not a rebuild. Set that one.
+
+`NEXT_PUBLIC_API_URL` is only a fallback and nothing uses it today. It is
+inlined into the browser bundle at build time, which makes it the wrong place
+for this value: a bundle built without it ships the localhost default and no
+amount of restarting fixes it.
+
+### How the browser reaches the api
+
+It does not, directly. Every browser side fetch goes to the relative
+`/api/v1/...` path on the web domain, and `apps/web/app/api/v1/[...path]/route.ts`
+forwards it to `API_URL` server side.
+
+That proxy is load bearing for two reasons:
+
+- No api hostname is baked into the client bundle, so `API_URL` can change
+  after a build.
+- The refresh cookie stays same site. `crmweb-production-416a.up.railway.app`
+  and `crmapi-production-60ad.up.railway.app` are separate sites, so a
+  `SameSite=lax` cookie set on the api's own domain would never be sent back
+  from the web app. Proxied, the cookie belongs to the web domain.
+
+It is a route handler rather than a `rewrites()` entry because a rewrite
+destination is resolved during `next build` and frozen into
+`routes-manifest.json`: `next start` would keep proxying to whatever `API_URL`
+was at build time, which is exactly the build time baking the proxy exists to
+avoid.
+
+Because of the proxy, `REFRESH_COOKIE_PATH` on the api must stay `/`. The
+browser matches the path it sees, which is `/api/v1/auth/refresh`, so a cookie
+scoped to the api's own `/v1/auth` would never be sent.
 
 `SHADOW_DATABASE_URL` is only needed by `prisma migrate dev` and the CI drift
 check. The api pre-deploy command runs `migrate deploy`, which does not use it.

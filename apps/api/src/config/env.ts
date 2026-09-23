@@ -44,6 +44,17 @@ export const envSchema = z.object({
 
   /** From address for transactional email. */
   MAIL_FROM: z.string().default('CRM <onboarding@resend.dev>'),
+
+  /**
+   * Path the refresh cookie is scoped to.
+   *
+   * Defaults to "/" because the browser reaches the API through the web app's
+   * /api/v1 proxy, and a cookie scoped to the API's own "/v1/auth" would not
+   * be sent to "/api/v1/auth/refresh": the browser matches the path it sees,
+   * which is the proxy's. "/" is correct behind any proxy mount point. Narrow
+   * it only when the browser talks to the API directly.
+   */
+  REFRESH_COOKIE_PATH: z.string().startsWith('/').default('/'),
 });
 
 export type Env = z.infer<typeof envSchema>;

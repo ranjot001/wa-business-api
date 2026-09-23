@@ -86,7 +86,12 @@ export class TokenService {
     });
   }
 
-  /** Cookie options shared by every place that sets or clears the cookie. */
+  /**
+   * Cookie options shared by every place that sets or clears the cookie.
+   *
+   * clearCookie only matches a cookie whose path is identical, so the clear on
+   * logout has to read the same REFRESH_COOKIE_PATH the cookie was set with.
+   */
   refreshCookieOptions(expires?: Date): {
     httpOnly: true;
     secure: boolean;
@@ -99,7 +104,7 @@ export class TokenService {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
-      path: '/v1/auth',
+      path: this.config.get('REFRESH_COOKIE_PATH', { infer: true }),
       ...(expires ? { expires } : {}),
     };
   }

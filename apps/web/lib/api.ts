@@ -18,6 +18,16 @@ export function getApiUrl(): string {
   return process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 }
 
+/**
+ * What the browser calls instead of the API's own origin.
+ *
+ * Relative on purpose. The rewrite in next.config.mjs forwards it to API_URL
+ * server side, which keeps the API's hostname out of the client bundle and
+ * keeps the refresh cookie on the same site as the app. Server side code uses
+ * getApiUrl() and talks to the API directly, with no proxy hop.
+ */
+export const BROWSER_API_BASE = '/api/v1';
+
 export interface HealthResponse {
   status: string;
   uptime: number;

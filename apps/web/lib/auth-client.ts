@@ -1,4 +1,4 @@
-import { ApiError, getApiUrl } from './api';
+import { ApiError, BROWSER_API_BASE } from './api';
 
 /** Where the active workspace id is remembered between visits. */
 export const ACTIVE_WORKSPACE_KEY = 'crm.active_workspace_id';
@@ -49,7 +49,7 @@ export class AuthClient {
   }
 
   private async doRefresh(): Promise<string | null> {
-    const res = await fetch(`${getApiUrl()}/v1/auth/refresh`, {
+    const res = await fetch(`${BROWSER_API_BASE}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
     });
@@ -73,7 +73,7 @@ export class AuthClient {
     const { workspaceId, ...rest } = init;
 
     const send = async (token: string | null): Promise<Response> =>
-      fetch(`${getApiUrl()}/v1${path}`, {
+      fetch(`${BROWSER_API_BASE}${path}`, {
         ...rest,
         credentials: 'include',
         headers: {
@@ -109,7 +109,7 @@ export class AuthClient {
 
   /** Unauthenticated POST, for register, login and the rest of /v1/auth. */
   async post<T>(path: string, body: unknown): Promise<T> {
-    const res = await fetch(`${getApiUrl()}/v1${path}`, {
+    const res = await fetch(`${BROWSER_API_BASE}${path}`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'content-type': 'application/json' },

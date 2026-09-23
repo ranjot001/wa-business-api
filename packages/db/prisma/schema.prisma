@@ -15,17 +15,130 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Models are added in later tasks. The initial migration is intentionally empty.
+/// Role inside one workspace. Hierarchy is owner > admin > agent; see
+/// apps/api/src/common/guards/roles.guard.ts for how that ordering is applied.
+enum WorkspaceRole {
+  owner
+  admin
+  agent
 
-/// Baseline placeholder.
-///
-/// Prisma refuses to generate a client from a schema with no models, and both
-/// apps import PrismaClient from @crm/db, so the schema cannot be literally
-/// empty. This table carries no product meaning: task 02 introduces the real
-/// workspace and user models and this one gets dropped in that migration.
-model SchemaPlaceholder {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  @@map("workspace_role")
+}
 
-  @@map("schema_placeholder")
+/// A person. Identity is global, not workspace scoped: one user can belong to
+/// several workspaces through WorkspaceMember.
+model User {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email           String    @unique
+  passwordHash    String    @map("password_hash")
+  name            String
+  avatarUrl       String?   @map("avatar_url")
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(6)
+  lastLoginAt     DateTime? @map("last_login_at") @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  memberships     WorkspaceMember[]
+  refreshTokens   RefreshToken[]
+  invitationsSent Invitation[]      @relation("InvitationInvitedBy")
+  auditLogs       AuditLog[]
+
+  @@map("users")
+}
+
+/// A tenant. Every business table below carries workspace_id and every query
+/// filters by it.
+model Workspace {
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  slug               String    @unique
+  timezone           String    @default("UTC")
+  plan               String    @default("trial")
+  subscriptionStatus String    @default("trialing") @map("subscription_status")
+  trialEndsAt        DateTime? @map("trial_ends_at") @db.Timestamptz(6)
+  businessHours      Json?     @map("business_hours")
+  /// Soft delete. DELETE /v1/workspaces/current stamps this instead of removing
+  /// the row, and every lookup filters it out.
+  deletedAt          DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  members     WorkspaceMember[]
+  invitations Invitation[]
+  auditLogs   AuditLog[]
+
+  @@map("workspaces")
+}
+
+/// Membership of one user in one workspace, carrying that user's role there.
+model WorkspaceMember {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        WorkspaceRole
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+/// A pending invite to join a workspace. The token is what the invitee clicks.
+model Invitation {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  email       String
+  role        WorkspaceRole
+  token       String        @unique
+  expiresAt   DateTime      @map("expires_at") @db.Timestamptz(6)
+  acceptedAt  DateTime?     @map("accepted_at") @db.Timestamptz(6)
+  invitedById String        @map("invited_by") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy User      @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([email])
+  @@map("invitations")
+}
+
+/// One issued refresh token. Only the sha256 of the token is stored, so a
+/// database leak does not hand out sessions. Rotation revokes the old row.
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz(6)
+  userAgent String?   @map("user_agent")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+/// Append only record of who did what inside a workspace.
+model AuditLog {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  actorId     String?  @map("actor_id") @db.Uuid
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id") @db.Uuid
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actor     User?     @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@map("audit_logs")
 }

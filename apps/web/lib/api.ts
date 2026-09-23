@@ -2,7 +2,21 @@
  * Small typed fetch wrapper for the API. Every response that is not 2xx is
  * assumed to carry the standard { error: { code, message, details } } body.
  */
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+
+/**
+ * Base URL of the API, without a trailing slash and without the /v1 suffix.
+ *
+ * Read on every call rather than captured in a module level constant, because
+ * `NEXT_PUBLIC_API_URL` is inlined into the bundle when the app is built. A
+ * value set on the host after that build never reaches the running process.
+ * The server only `API_URL` is read from the real environment at request time,
+ * so changing it needs a restart and not a rebuild, and it wins when both are
+ * set. `NEXT_PUBLIC_API_URL` stays as the fallback because it is the only one
+ * of the two that survives into the browser bundle.
+ */
+export function getApiUrl(): string {
+  return process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+}
 
 export interface HealthResponse {
   status: string;
@@ -22,7 +36,7 @@ export class ApiError extends Error {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}/v1${path}`, {
+  const res = await fetch(`${getApiUrl()}/v1${path}`, {
     ...init,
     headers: { 'content-type': 'application/json', ...init?.headers },
     cache: 'no-store',

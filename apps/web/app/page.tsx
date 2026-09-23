@@ -1,4 +1,4 @@
-import { API_URL, apiFetch, type HealthResponse } from '@/lib/api';
+import { apiFetch, getApiUrl, type HealthResponse } from '@/lib/api';
 import { StatusBadge } from '@/components/status-badge';
 
 // Always hit the API on request so the page reflects the live status.
@@ -32,7 +32,7 @@ export default async function HomePage() {
           <div>
             <p className="text-sm font-medium">API health</p>
             <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
-              {API_URL}/v1/health
+              {getApiUrl()}/v1/health
             </p>
           </div>
           <StatusBadge ok={result.ok} label={result.ok ? result.health.status : 'unreachable'} />

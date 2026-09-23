@@ -1,0 +1,21 @@
+meta {
+  name: Remove Member
+  type: http
+  seq: 3
+}
+
+delete {
+  url: {{base_url}}/v1/members/{{member_user_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+docs {
+  admin or owner. 409 LAST_OWNER when it would remove the only owner. 204.
+}

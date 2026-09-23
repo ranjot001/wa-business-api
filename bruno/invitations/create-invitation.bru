@@ -1,0 +1,39 @@
+meta {
+  name: Create Invitation
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/invitations
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "email": "teammate@example.com",
+    "role": "agent"
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  bru.setEnvVar("invitation_id", res.body.id);
+}
+
+docs {
+  admin or owner. The link is good for 7 days and is logged by the api when
+  RESEND_API_KEY is unset. Re-inviting the same address replaces the open
+  invitation rather than adding a second one.
+}

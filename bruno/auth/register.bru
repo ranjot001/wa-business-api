@@ -1,0 +1,40 @@
+meta {
+  name: Register
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}",
+    "name": "Ranjot"
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  // Every later request reads {{access_token}}, so capture it here.
+  bru.setEnvVar("access_token", res.body.access_token);
+}
+
+docs {
+  Creates the account and signs it in. The refresh token comes back as an
+  httpOnly cookie, which Bruno stores and replays on /v1/auth/refresh.
+
+  409 EMAIL_TAKEN when the address already has an account.
+}

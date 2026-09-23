@@ -1,0 +1,29 @@
+meta {
+  name: Refresh
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/v1/auth/refresh
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  bru.setEnvVar("access_token", res.body.access_token);
+}
+
+docs {
+  Reads the refresh cookie, revokes it, issues a new one, and returns a fresh
+  access token. Sending the same cookie twice fails the second time: that is
+  the rotation working, not a bug.
+}

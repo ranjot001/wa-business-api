@@ -1,0 +1,21 @@
+meta {
+  name: Get Current Workspace
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/workspaces/current
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+assert {
+  res.status: eq 200
+}

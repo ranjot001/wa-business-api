@@ -1,0 +1,37 @@
+meta {
+  name: Create Workspace
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/workspaces
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Demo",
+    "timezone": "Asia/Kolkata"
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  bru.setEnvVar("workspace_id", res.body.id);
+}
+
+docs {
+  No X-Workspace-Id here: this is how a user with no workspace gets their
+  first. The creator becomes owner and the trial ends in 14 days.
+}

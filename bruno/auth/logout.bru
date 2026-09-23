@@ -1,0 +1,23 @@
+meta {
+  name: Logout
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+}
+
+assert {
+  res.status: eq 204
+}
+
+docs {
+  Revokes the refresh token and clears the cookie.
+}

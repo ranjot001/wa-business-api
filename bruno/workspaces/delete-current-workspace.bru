@@ -1,0 +1,21 @@
+meta {
+  name: Delete Current Workspace
+  type: http
+  seq: 4
+}
+
+delete {
+  url: {{base_url}}/v1/workspaces/current
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+docs {
+  owner only. Soft delete: stamps deleted_at and audits it. 204.
+}

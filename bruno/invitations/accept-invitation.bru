@@ -1,0 +1,33 @@
+meta {
+  name: Accept Invitation
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{base_url}}/v1/invitations/accept
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+}
+
+body:json {
+  {
+    "token": "{{invitation_token}}",
+    "name": "Teammate",
+    "password": "another-strong-password"
+  }
+}
+
+script:post-response {
+  bru.setEnvVar("access_token", res.body.access_token);
+}
+
+docs {
+  Public: the token is the credential. name and password are only needed when
+  the invited address has no account yet. Accepting signs the invitee in.
+}

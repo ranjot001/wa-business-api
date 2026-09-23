@@ -1,0 +1,27 @@
+meta {
+  name: Update Me
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{base_url}}/v1/me
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+}
+
+body:json {
+  {
+    "name": "Ranjot Singh"
+  }
+}
+
+assert {
+  res.status: eq 200
+}

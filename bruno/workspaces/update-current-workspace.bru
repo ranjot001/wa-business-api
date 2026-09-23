@@ -1,0 +1,32 @@
+meta {
+  name: Update Current Workspace
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{base_url}}/v1/workspaces/current
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "name": "Demo Renamed"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  admin or owner. An agent gets 403 FORBIDDEN.
+}

@@ -1,44 +1,39 @@
 # Bruno collection
 
-API requests for the WhatsApp CRM, checked into the repo so they version with
-the endpoints they call.
+API requests for local and production. Open the `/bruno` folder in
+[Bruno](https://www.usebruno.com) and pick an environment in the top right.
 
-## Use it
+## Environments
 
-Install Bruno (`brew install --cask bruno`), then **Open Collection** and pick
-this `bruno` folder. Choose an environment in the top right before sending
-anything.
+| Variable      | local                   | production                 |
+| ------------- | ----------------------- | -------------------------- |
+| `base_url`    | `http://localhost:4000` | the public Railway api URL |
+| `email`       | the seeded user         | set it yourself            |
+| `password`    | `SEED_PASSWORD`         | set it yourself            |
 
-| Environment  | base_url                          |
-| ------------ | --------------------------------- |
-| `local`      | `http://localhost:4000`           |
-| `production` | placeholder, see below            |
+Every request spells out the `/v1` prefix itself, matching how the web app
+builds URLs from `API_URL`.
 
-`base_url` is the host only. Each request spells out the `/v1` prefix itself,
-the same way the web app builds URLs from `NEXT_PUBLIC_API_URL`.
+## Order to run things in
 
-## Production URL is still a placeholder
+1. **auth / Login** (or **Register** for a new account). Both capture
+   `access_token` into the environment, and every later request sends it.
+2. **me / Get Me**. Captures `workspace_id` from the first workspace, which is
+   what the workspace scoped requests send as `X-Workspace-Id`.
+3. Anything else. **workspaces / Create Workspace** also sets `workspace_id`,
+   so run it instead of step 2 when starting from an account with no workspace.
 
-`environments/production.bru` points at `https://REPLACE_ME.up.railway.app`.
-Replace it with the real Railway domain for the api service once that exists
-(task 01 step 11). Nothing else needs to change.
+Variables marked with `~` are placeholders you fill in from a response:
+`invitation_token` comes from the link the api logs, `member_user_id` from
+**members / List Members**, and `reset_token` from the forgot-password link.
 
-## Command line
+`access_token` is a secret variable, so it is not written to the environment
+file when Bruno saves it.
 
-The same collection runs headless, which is handy for a smoke test after a
-deploy:
+## Notes
 
-```bash
-cd bruno
-npx --yes @usebruno/cli run --env local
-```
-
-Use `npx`, not `pnpm dlx`: pnpm's resolver stalls on this package's dependency
-tree. A passing run prints one line per request plus its assertions.
-
-## Adding requests
-
-One folder per resource, `seq` ordering requests inside it. Every request
-carries an `assert` block so a run fails on a wrong status or a changed body
-rather than just printing one. When you add an endpoint, add it here and to the
-table in `apps/api/README.md`.
+- **auth / Refresh** works once per cookie. Running it twice in a row fails the
+  second time, because refreshing revokes the token it was given.
+- Password reset and invitation emails are only sent when the api has
+  `RESEND_API_KEY`. Without it the api logs the link, which is what local
+  development runs on.

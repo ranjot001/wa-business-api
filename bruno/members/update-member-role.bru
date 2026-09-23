@@ -1,0 +1,29 @@
+meta {
+  name: Update Member Role
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{base_url}}/v1/members/{{member_user_id}}
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "role": "admin"
+  }
+}
+
+docs {
+  admin or owner. 409 LAST_OWNER when it would demote the only owner.
+  Writes an audit log entry.
+}

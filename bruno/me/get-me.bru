@@ -1,0 +1,31 @@
+meta {
+  name: Get Me
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/me
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  // Pick the first workspace so the workspace scoped requests have a header.
+  if (res.body.workspaces && res.body.workspaces.length > 0) {
+    bru.setEnvVar("workspace_id", res.body.workspaces[0].id);
+  }
+}
+
+docs {
+  The caller plus every workspace they belong to, with their role in each.
+}

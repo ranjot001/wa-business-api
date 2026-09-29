@@ -1,0 +1,45 @@
+meta {
+  name: Connect Manual Account
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/whatsapp/accounts/manual
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "waba_id": "102290129340398",
+    "phone_number_id": "{{phone_number_id}}",
+    "display_phone": "+1 555 0100",
+    "access_token": "{{meta_access_token}}",
+    "verified_name": "Demo Co"
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+docs {
+  Owner only. Attaches a WhatsApp number to the current workspace by hand,
+  which is how beta customers are onboarded until Embedded Signup lands in
+  task 13. For local development this is how a Meta test number is registered
+  to the Demo workspace.
+
+  The access token is encrypted with AES-256-GCM before it is stored and is
+  never returned; the response carries only a 4 character hint.
+
+  phone_number_id is globally unique: inbound webhooks route to a workspace by
+  that field alone, so a number held by another workspace answers 409 CONFLICT.
+}

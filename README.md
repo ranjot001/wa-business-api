@@ -120,6 +120,10 @@ api:
 | `WEB_ORIGIN`   | no       | `http://localhost:3000` | the public web URL, comma separated |
 | `LOG_LEVEL`    | no       | `info`        | `info`                                        |
 | `REFRESH_COOKIE_PATH` | no | `/`         | `/` (the web app proxies the api)             |
+| `ENCRYPTION_KEY` | yes    | none          | `openssl rand -base64 32`, same on api and worker |
+| `META_WEBHOOK_VERIFY_TOKEN` | yes | none | any string, must match the Meta app dashboard |
+| `META_APP_SECRET` | yes   | none          | from the Meta app dashboard                   |
+| `META_GRAPH_VERSION` | no | `v20.0`       | `v20.0`                                       |
 | `PORT`         | no       | `4000`        | injected by Railway, do not set it            |
 
 `DATABASE_URL` and `REDIS_URL` must parse as URLs. `WEB_ORIGIN` defaults to
@@ -135,8 +139,24 @@ worker:
 | `NODE_ENV`           | no       | `development` | `production`                 |
 | `LOG_LEVEL`          | no       | `info`        | `info`                       |
 | `WORKER_CONCURRENCY` | no       | `5`           | `5`                          |
+| `ENCRYPTION_KEY`     | yes      | none          | the same value as the api    |
+| `META_GRAPH_VERSION` | no       | `v20.0`       | `v20.0`                      |
+| `R2_ACCOUNT_ID`      | no       | none          | Cloudflare R2 account id     |
+| `R2_ACCESS_KEY_ID`   | no       | none          | R2 access key                |
+| `R2_SECRET_ACCESS_KEY` | no     | none          | R2 secret                    |
+| `R2_BUCKET`          | no       | none          | R2 bucket name               |
 
 The worker has no `PORT`.
+
+`ENCRYPTION_KEY` must be byte for byte identical on the api and the worker: the
+api encrypts Meta access tokens with it and the worker decrypts them to
+download media. A mismatch surfaces as media downloads failing to authenticate,
+not as a boot error.
+
+The four `R2_*` variables are optional so local development and CI can run
+without object storage. Unset, the worker boots with a warning and media
+downloads fail with a clear reason instead of the process refusing to start.
+Set them in production or inbound media is never stored.
 
 web:
 

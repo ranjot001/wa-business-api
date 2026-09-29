@@ -30,6 +30,19 @@ Variables marked with `~` are placeholders you fill in from a response:
 `access_token` is a secret variable, so it is not written to the environment
 file when Bruno saves it.
 
+## The WhatsApp webhook
+
+`webhooks / Receive Webhook` cannot be sent from Bruno as is: Meta signs the
+exact request bytes with `META_APP_SECRET` and Bruno cannot compute that for
+you. The request's docs tab carries a curl snippet that signs and sends in one
+step, which is the practical way to replay a payload locally.
+
+`webhooks / Verify Webhook` does work from Bruno and is a quick way to confirm
+`META_WEBHOOK_VERIFY_TOKEN` matches what the Meta dashboard has.
+
+To register a number locally, run `whatsapp / Connect Manual Account` with
+`meta_access_token` set to a real Meta token. It is owner only.
+
 ## Notes
 
 - **auth / Refresh** works once per cookie. Running it twice in a row fails the

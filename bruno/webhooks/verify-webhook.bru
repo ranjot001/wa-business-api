@@ -1,0 +1,29 @@
+meta {
+  name: Verify Webhook
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token={{meta_verify_token}}&hub.challenge=1158201444
+  body: none
+  auth: none
+}
+
+params:query {
+  hub.mode: subscribe
+  hub.verify_token: {{meta_verify_token}}
+  hub.challenge: 1158201444
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Meta's one time subscription handshake. Returns the challenge as a bare
+  string when hub.verify_token matches META_WEBHOOK_VERIFY_TOKEN, 403 otherwise.
+
+  Meta calls this itself when the webhook url is saved in the app dashboard.
+  Running it here is a way to check the token is configured correctly.
+}

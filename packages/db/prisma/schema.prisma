@@ -38,10 +38,12 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  memberships     WorkspaceMember[]
-  refreshTokens   RefreshToken[]
-  invitationsSent Invitation[]      @relation("InvitationInvitedBy")
-  auditLogs       AuditLog[]
+  memberships           WorkspaceMember[]
+  refreshTokens         RefreshToken[]
+  invitationsSent       Invitation[]      @relation("InvitationInvitedBy")
+  auditLogs             AuditLog[]
+  assignedConversations Conversation[]    @relation("ConversationAssignee")
+  sentMessages          Message[]         @relation("MessageSentBy")
 
   @@map("users")
 }
@@ -63,9 +65,14 @@ model Workspace {
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  members     WorkspaceMember[]
-  invitations Invitation[]
-  auditLogs   AuditLog[]
+  members          WorkspaceMember[]
+  invitations      Invitation[]
+  auditLogs        AuditLog[]
+  whatsappAccounts WhatsAppAccount[]
+  contacts         Contact[]
+  conversations    Conversation[]
+  messages         Message[]
+  media            Media[]
 
   @@map("workspaces")
 }
@@ -141,4 +148,248 @@ model AuditLog {
 
   @@index([workspaceId, createdAt])
   @@map("audit_logs")
+}
+
+/// Connection state of one WhatsApp number.
+enum WhatsAppAccountStatus {
+  connected
+  disconnected
+  error
+
+  @@map("whatsapp_account_status")
+}
+
+/// How a contact first reached the workspace.
+enum ContactSource {
+  inbound
+  import
+  manual
+  api
+
+  @@map("contact_source")
+}
+
+enum ConversationStatus {
+  open
+  pending
+  resolved
+
+  @@map("conversation_status")
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+
+  @@map("message_direction")
+}
+
+/// Every message type the inbound mapper knows how to store. Anything Meta
+/// sends that is not in this list lands as `unsupported` with the raw payload.
+enum MessageType {
+  text
+  image
+  video
+  audio
+  document
+  sticker
+  location
+  contacts
+  template
+  interactive
+  reaction
+  button
+  unsupported
+
+  @@map("message_type")
+}
+
+/// Delivery state. Ordering matters: see the status ladder in the worker, a
+/// late "delivered" webhook must never downgrade a message already "read".
+enum MessageStatus {
+  queued
+  sent
+  delivered
+  read
+  failed
+
+  @@map("message_status")
+}
+
+enum MediaStatus {
+  pending
+  ready
+  failed
+
+  @@map("media_status")
+}
+
+enum WebhookProvider {
+  meta
+  stripe
+
+  @@map("webhook_provider")
+}
+
+enum WebhookEventStatus {
+  received
+  processed
+  failed
+
+  @@map("webhook_event_status")
+}
+
+/// One WhatsApp number, owned by one workspace.
+model WhatsAppAccount {
+  id             String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String                @map("workspace_id") @db.Uuid
+  wabaId         String                @map("waba_id")
+  /// Meta's id for the number. Unique across the whole table: one number can
+  /// only belong to one workspace, which is what lets an inbound webhook route
+  /// to a tenant from the payload alone.
+  phoneNumberId  String                @unique @map("phone_number_id")
+  displayPhone   String                @map("display_phone")
+  verifiedName   String?               @map("verified_name")
+  /// AES-256-GCM ciphertext, never the raw token. See packages/shared/crypto.ts.
+  accessTokenEnc Bytes                 @map("access_token_enc")
+  qualityRating  String?               @map("quality_rating")
+  messagingTier  String?               @map("messaging_tier")
+  status         WhatsAppAccountStatus @default(connected)
+  connectedAt    DateTime?             @map("connected_at") @db.Timestamptz(6)
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@index([workspaceId])
+  @@map("whatsapp_accounts")
+}
+
+/// A person the workspace talks to, identified by their WhatsApp number.
+model Contact {
+  id             String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String        @map("workspace_id") @db.Uuid
+  /// Digits only, no plus and no separators, exactly as Meta sends it.
+  waId           String        @map("wa_id")
+  name           String?
+  /// What the contact calls themselves in WhatsApp. Not editable by the team.
+  profileName    String?       @map("profile_name")
+  attributes     Json          @default("{}")
+  optedOut       Boolean       @default(false) @map("opted_out")
+  optedOutAt     DateTime?     @map("opted_out_at") @db.Timestamptz(6)
+  lastInboundAt  DateTime?     @map("last_inbound_at") @db.Timestamptz(6)
+  lastOutboundAt DateTime?     @map("last_outbound_at") @db.Timestamptz(6)
+  source         ContactSource @default(inbound)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  messages      Message[]
+
+  @@unique([workspaceId, waId])
+  @@index([workspaceId, lastInboundAt])
+  @@map("contacts")
+}
+
+/// One thread between a contact and a workspace number.
+model Conversation {
+  id                 String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId        String             @map("workspace_id") @db.Uuid
+  contactId          String             @map("contact_id") @db.Uuid
+  whatsappAccountId  String             @map("whatsapp_account_id") @db.Uuid
+  status             ConversationStatus @default(open)
+  assignedTo         String?            @map("assigned_to") @db.Uuid
+  lastMessageAt      DateTime?          @map("last_message_at") @db.Timestamptz(6)
+  lastMessagePreview String?            @map("last_message_preview")
+  unreadCount        Int                @default(0) @map("unread_count")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace       Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  contact         Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  whatsappAccount WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  assignee        User?           @relation("ConversationAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  messages        Message[]
+
+  @@unique([workspaceId, contactId, whatsappAccountId])
+  @@index([workspaceId, status, lastMessageAt(sort: Desc)])
+  @@index([workspaceId, assignedTo, status])
+  @@map("conversations")
+}
+
+/// One message in one direction. The unique index on wa_message_id is the
+/// idempotency guarantee for the inbound pipeline: a replayed webhook loses
+/// the insert race and is skipped.
+model Message {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId        String           @map("workspace_id") @db.Uuid
+  conversationId     String           @map("conversation_id") @db.Uuid
+  contactId          String           @map("contact_id") @db.Uuid
+  direction          MessageDirection
+  /// Meta's message id. Null only for outbound rows that have not been sent
+  /// yet, which is why it is nullable and unique rather than a primary key.
+  waMessageId        String?          @unique @map("wa_message_id")
+  type               MessageType
+  content            Json
+  status             MessageStatus    @default(queued)
+  errorCode          Int?             @map("error_code")
+  errorMessage       String?          @map("error_message")
+  sentByUserId       String?          @map("sent_by_user_id") @db.Uuid
+  sentByAutomationId String?          @map("sent_by_automation_id") @db.Uuid
+  broadcastId        String?          @map("broadcast_id") @db.Uuid
+  replyToMessageId   String?          @map("reply_to_message_id") @db.Uuid
+  waTimestamp        DateTime?        @map("wa_timestamp") @db.Timestamptz(6)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  sentBy       User?        @relation("MessageSentBy", fields: [sentByUserId], references: [id], onDelete: SetNull)
+  media        Media[]
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([workspaceId])
+  @@map("messages")
+}
+
+/// A media attachment. The binary lives in R2; this row tracks the download.
+model Media {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String      @map("workspace_id") @db.Uuid
+  messageId   String      @map("message_id") @db.Uuid
+  waMediaId   String      @map("wa_media_id")
+  mimeType    String?     @map("mime_type")
+  sizeBytes   Int?        @map("size_bytes")
+  storageKey  String?     @map("storage_key")
+  status      MediaStatus @default(pending)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("media")
+}
+
+/// Raw webhook envelope, stored before anything is interpreted.
+///
+/// Deliberately not workspace scoped: the workspace is only known after the
+/// payload has been read and the phone_number_id resolved, and an event whose
+/// number belongs to nobody still has to be recorded.
+model WebhookEvent {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider    WebhookProvider
+  externalId  String?            @map("external_id")
+  payload     Json
+  status      WebhookEventStatus @default(received)
+  error       String?
+  processedAt DateTime?          @map("processed_at") @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([provider, status])
+  @@map("webhook_events")
 }

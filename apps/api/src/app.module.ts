@@ -14,6 +14,8 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { MembersModule } from './members/members.module';
 import { MeModule } from './me/me.module';
 import { RedisModule } from './redis/redis.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
+import { WhatsAppModule } from './whatsapp/whatsapp.module';
 import { WorkspacesModule } from './workspaces/workspaces.module';
 
 @Module({
@@ -71,6 +73,8 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     WorkspacesModule,
     MembersModule,
     InvitationsModule,
+    WhatsAppModule,
+    WebhooksModule,
   ],
   providers: [
     // Every route needs an access token unless it is marked @Public().

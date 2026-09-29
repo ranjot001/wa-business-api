@@ -55,6 +55,30 @@ export const envSchema = z.object({
    * it only when the browser talks to the API directly.
    */
   REFRESH_COOKIE_PATH: z.string().startsWith('/').default('/'),
+
+  /**
+   * Key for AES-256-GCM at rest encryption of Meta access tokens. Must decode
+   * to exactly 32 bytes from base64 or hex: `openssl rand -base64 32`.
+   * Rotating it makes every stored token undecryptable, so they would all need
+   * re-entering.
+   */
+  ENCRYPTION_KEY: z.string().min(1),
+
+  /** Graph API version every outbound Meta call uses, e.g. v20.0. */
+  META_GRAPH_VERSION: z.string().default('v20.0'),
+
+  /**
+   * Shared secret echoed back during Meta's webhook handshake. Any string;
+   * it has to match what is typed into the Meta app dashboard.
+   */
+  META_WEBHOOK_VERIFY_TOKEN: z.string().min(1),
+
+  /**
+   * Meta app secret, used to verify the X-Hub-Signature-256 header on every
+   * inbound webhook. Without it there is no way to tell a real delivery from
+   * anyone who knows the url.
+   */
+  META_APP_SECRET: z.string().min(1),
 });
 
 export type Env = z.infer<typeof envSchema>;

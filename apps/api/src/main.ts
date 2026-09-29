@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
+import express from 'express';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
@@ -20,6 +21,18 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('v1');
 
   app.use(helmet());
+
+  // The Meta webhook signature is computed over the exact bytes Meta sent.
+  // Re-serialising the parsed object does not reproduce them (key order,
+  // whitespace and unicode escaping all differ), so the raw buffer is kept on
+  // the request for the signature guard to hash.
+  app.use(
+    express.json({
+      verify: (req, _res, buffer) => {
+        (req as express.Request & { rawBody?: Buffer }).rawBody = Buffer.from(buffer);
+      },
+    }),
+  );
 
   // The refresh token travels in an httpOnly cookie, so the auth routes need
   // the parsed cookie jar on the request.

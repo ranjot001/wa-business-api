@@ -47,6 +47,10 @@ Auth column:
 | POST   | `/v1/invitations`          | jwt + ws, admin   | `{email, role}`. Emails a link good for 7 days. Re-inviting replaces the open invite. 201.          |
 | DELETE | `/v1/invitations/:id`      | jwt + ws, admin   | Revokes a pending invitation. 204.                                                                  |
 | POST   | `/v1/invitations/accept`   | none              | `{token, name?, password?}`. Creates the account when the email is new, then signs the caller in.   |
+| GET    | `/v1/webhooks/whatsapp`    | verify token      | Meta's subscription handshake. Echoes `hub.challenge` when `hub.verify_token` matches.              |
+| POST   | `/v1/webhooks/whatsapp`    | HMAC signature    | Delivery endpoint. Verifies `X-Hub-Signature-256`, stores the envelope, enqueues, returns 200 fast. |
+| POST   | `/v1/whatsapp/accounts/manual` | jwt + ws, owner | `{waba_id, phone_number_id, display_phone, access_token, verified_name?}`. Token stored encrypted.  |
+| GET    | `/v1/whatsapp/account`     | jwt + ws          | The workspace's connected number. Returns only a 4 character hint of the token, never the token.    |
 
 Add every new endpoint to this table and to the Bruno collection in `/bruno`.
 
@@ -69,6 +73,45 @@ Roles are ordered owner > admin > agent, and `@Roles('admin')` is a floor
 rather than an exact match, so an owner passes every admin check.
 
 The auth routes are rate limited to 10 requests a minute per IP.
+
+## The WhatsApp webhook
+
+Both webhook routes are public in the JWT sense, because Meta has no account
+here. Authenticity comes from two different mechanisms:
+
+- **GET** is the one time subscription handshake. Meta sends `hub.mode`,
+  `hub.verify_token` and `hub.challenge`; the challenge is echoed back as a
+  bare string only when the token equals `META_WEBHOOK_VERIFY_TOKEN`.
+- **POST** carries `X-Hub-Signature-256`, an HMAC-SHA256 of the request body
+  keyed with `META_APP_SECRET`. `MetaSignatureGuard` verifies it.
+
+The signature is computed over the **exact bytes Meta sent**, so `main.ts`
+keeps the raw buffer on the request through the `express.json` verify hook and
+the guard hashes that. Hashing a re-serialised `req.body` would pass in
+development and then fail in production on the first contact whose name
+contains an emoji. The comparison uses `timingSafeEqual`, and the digest length
+is checked first because `timingSafeEqual` throws on a length mismatch.
+
+The handler does the minimum: one insert into `webhook_events`, one enqueue,
+then 200. No Meta call is made in the request, per CLAUDE.md, and anything slow
+or non-200 makes Meta redeliver.
+
+### Idempotency
+
+The inbound pipeline is replay safe at two levels, which matters because both
+Meta and BullMQ retry:
+
+1. A `webhook_events` row is only processed while its status is not yet
+   `processed`, so a duplicate job for a finished event exits immediately.
+2. `messages.wa_message_id` is unique. A replayed payload loses the insert and
+   is skipped, so the conversation's `unread_count` does not inflate either.
+
+Replaying the same body three times therefore produces exactly one message row.
+
+Note that `upsert` in Prisma is a select followed by an insert, not one atomic
+statement, so concurrent jobs for the first message from a new contact can both
+try to insert. That unique violation is caught and the winner's row is read
+instead, rather than failing the job.
 
 ## Password reset tokens
 

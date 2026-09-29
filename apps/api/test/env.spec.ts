@@ -5,6 +5,9 @@ const valid = {
   DATABASE_URL: 'postgresql://crm:crm@localhost:5432/crm',
   REDIS_URL: 'redis://localhost:6379',
   JWT_SECRET: 'a-secret-that-is-at-least-32-characters-long',
+  ENCRYPTION_KEY: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+  META_WEBHOOK_VERIFY_TOKEN: 'verify-token',
+  META_APP_SECRET: 'app-secret',
 };
 
 describe('validateEnv', () => {
@@ -16,6 +19,8 @@ describe('validateEnv', () => {
     expect(env.LOG_LEVEL).toBe('info');
     expect(env.JWT_ACCESS_TTL).toBe('15m');
     expect(env.REFRESH_TTL_DAYS).toBe(30);
+    expect(env.META_GRAPH_VERSION).toBe('v20.0');
+    expect(env.REFRESH_COOKIE_PATH).toBe('/');
   });
 
   it('coerces PORT to a number', () => {
@@ -27,6 +32,8 @@ describe('validateEnv', () => {
     expect(() => validateEnv({})).toThrowError(/DATABASE_URL/);
     expect(() => validateEnv({})).toThrowError(/REDIS_URL/);
     expect(() => validateEnv({})).toThrowError(/JWT_SECRET/);
+    expect(() => validateEnv({})).toThrowError(/ENCRYPTION_KEY/);
+    expect(() => validateEnv({})).toThrowError(/META_APP_SECRET/);
   });
 
   it('rejects a JWT_SECRET that is too short to be worth signing with', () => {

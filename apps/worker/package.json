@@ -11,6 +11,7 @@
     "clean": "rm -rf dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1143.0",
     "@crm/db": "workspace:*",
     "@crm/shared": "workspace:*",
     "bullmq": "^5.34.6",

@@ -1,5 +1,5 @@
 import type { MessageType } from '@crm/db';
-import type { WaMediaObject, WaMessage } from '@crm/shared';
+import { toPreview, type WaMediaObject, type WaMessage } from '@crm/shared';
 
 /**
  * Maps one inbound Meta message object to the row we store.
@@ -42,23 +42,6 @@ function mediaContent(media: WaMediaObject | undefined): Record<string, unknown>
     caption: media?.caption ?? null,
     filename: media?.filename ?? null,
   };
-}
-
-/**
- * Collapse to a single line and cap it; previews sit in a list, not a bubble.
- * The ellipsis counts towards the limit, so the result is never longer than
- * `limit` and a column sized for it cannot overflow.
- */
-const ELLIPSIS = '...';
-
-export function toPreview(text: string, limit = 120): string {
-  const collapsed = text.replace(/\s+/g, ' ').trim();
-
-  if (collapsed.length <= limit) {
-    return collapsed;
-  }
-
-  return `${collapsed.slice(0, limit - ELLIPSIS.length)}${ELLIPSIS}`;
 }
 
 export function mapInboundMessage(message: WaMessage): MappedMessage {
@@ -185,4 +168,4 @@ export function mapInboundMessage(message: WaMessage): MappedMessage {
   }
 }
 
-export { MEDIA_TYPES, isMediaType };
+export { MEDIA_TYPES, isMediaType, toPreview };

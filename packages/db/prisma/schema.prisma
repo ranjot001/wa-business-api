@@ -355,12 +355,20 @@ model Message {
   @@map("messages")
 }
 
-/// A media attachment. The binary lives in R2; this row tracks the download.
+/// A media attachment. The binary lives in R2.
+///
+/// Two ways a row is born:
+///   - inbound: created by the webhook processor with message_id and
+///     wa_media_id set, status pending until the worker downloads it
+///   - uploaded: created by POST /v1/media/upload with status ready and no
+///     message, since the upload happens before the message is composed.
+///     wa_media_id stays null until the first send uploads it to Meta, which
+///     then caches the id here so later sends skip the upload.
 model Media {
   id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String      @map("workspace_id") @db.Uuid
-  messageId   String      @map("message_id") @db.Uuid
-  waMediaId   String      @map("wa_media_id")
+  messageId   String?     @map("message_id") @db.Uuid
+  waMediaId   String?     @map("wa_media_id")
   mimeType    String?     @map("mime_type")
   sizeBytes   Int?        @map("size_bytes")
   storageKey  String?     @map("storage_key")
@@ -369,7 +377,7 @@ model Media {
   updatedAt   DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message   Message?  @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@map("media")

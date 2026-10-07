@@ -3,6 +3,7 @@ export const QUEUES = {
   SYSTEM: 'system',
   WEBHOOKS: 'webhooks',
   MEDIA: 'media',
+  MESSAGES: 'messages',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -38,4 +39,17 @@ export const MEDIA_JOBS = {
 
 export interface MediaDownloadJobData {
   mediaId: string;
+}
+
+/** Job names for the messages queue. */
+export const MESSAGE_JOBS = {
+  SEND: 'message.send',
+} as const;
+
+/**
+ * Like the webhook job, only the row id travels. The message row is the source
+ * of truth for what to send, so a retry always sends what is stored now.
+ */
+export interface MessageSendJobData {
+  messageId: string;
 }

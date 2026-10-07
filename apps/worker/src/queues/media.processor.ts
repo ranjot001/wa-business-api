@@ -45,7 +45,15 @@ export function createMediaProcessor(deps: MediaProcessorDeps) {
       return { downloaded: false };
     }
 
+    // Uploaded media has no inbound message and nothing to download: its
+    // binary is already in R2. Only inbound rows carry both of these.
+    if (!media.message || !media.waMediaId) {
+      logger.warn({ mediaId: media.id }, 'media row is not an inbound download, skipping');
+      return { downloaded: false };
+    }
+
     const account = media.message.conversation.whatsappAccount;
+    const waMediaId = media.waMediaId;
 
     try {
       if (!storage.configured) {
@@ -60,7 +68,7 @@ export function createMediaProcessor(deps: MediaProcessorDeps) {
         },
       });
 
-      const info = await client.getMedia(media.waMediaId);
+      const info = await client.getMedia(waMediaId);
       const { body, contentType } = await client.downloadMedia(info.url);
 
       const storageKey = mediaKey(media.workspaceId, media.id);

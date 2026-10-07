@@ -1,9 +1,11 @@
+import type { MetaSendPayload, MetaSendResponse } from './outbound';
+
 /**
  * Typed wrapper over the Meta Graph API.
  *
- * Lives in packages/shared because both the api (sending) and the worker
- * (downloading media) need it, and CLAUDE.md requires every outbound Meta call
- * to go through one client rather than a scattering of fetch calls.
+ * Lives in packages/shared because both the api and the worker (downloading
+ * media, sending messages) need it, and CLAUDE.md requires every outbound Meta
+ * call to go through one client rather than a scattering of fetch calls.
  */
 
 /** Shape Meta returns on failure. */
@@ -58,6 +60,11 @@ export interface MetaClientOptions {
   onLog?: (fields: Record<string, unknown>, message: string) => void;
 }
 
+/** The one field of an account the send and upload calls need. */
+export interface MetaSenderAccount {
+  phoneNumberId: string;
+}
+
 const DEFAULT_BASE_URL = 'https://graph.facebook.com';
 
 export class MetaClient {
@@ -100,6 +107,85 @@ export class MetaClient {
 
     const body = Buffer.from(await res.arrayBuffer());
     return { body, contentType: res.headers.get('content-type') };
+  }
+
+  /**
+   * Send one message from this account's number. Returns Meta's message id,
+   * which is what every later status webhook refers to.
+   */
+  async sendMessage(
+    account: MetaSenderAccount,
+    payload: MetaSendPayload,
+  ): Promise<{ waMessageId: string; response: MetaSendResponse }> {
+    const res = await this.fetchImpl(
+      `${this.baseUrl}/${this.version}/${account.phoneNumberId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${this.accessToken}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    await this.throwIfError(res, 'sendMessage', {
+      phoneNumberId: account.phoneNumberId,
+      type: payload.type,
+    });
+
+    const response = (await res.json()) as MetaSendResponse;
+    const waMessageId = response.messages?.[0]?.id;
+
+    if (!waMessageId) {
+      // A 200 without an id would leave the row unmatchable by every status
+      // webhook that follows. Treat it as a failure rather than store a sent
+      // message nobody can track.
+      throw new MetaApiError('Meta accepted the message but returned no message id', res.status);
+    }
+
+    return { waMessageId, response };
+  }
+
+  /**
+   * Upload a binary to Meta so it can be sent by id. The id is tied to this
+   * phone number and, per Meta, lives for 30 days.
+   */
+  async uploadMedia(
+    account: MetaSenderAccount,
+    body: Buffer,
+    mimeType: string,
+    filename = 'upload',
+  ): Promise<{ id: string }> {
+    const form = new FormData();
+    form.append('messaging_product', 'whatsapp');
+    form.append('type', mimeType);
+    form.append('file', new Blob([body], { type: mimeType }), filename);
+
+    // No content-type header: fetch sets multipart/form-data with the boundary
+    // itself, and setting it by hand drops the boundary.
+    const res = await this.fetchImpl(
+      `${this.baseUrl}/${this.version}/${account.phoneNumberId}/media`,
+      {
+        method: 'POST',
+        headers: { authorization: `Bearer ${this.accessToken}` },
+        body: form,
+      },
+    );
+
+    await this.throwIfError(res, 'uploadMedia', {
+      phoneNumberId: account.phoneNumberId,
+      mimeType,
+      bytes: body.byteLength,
+    });
+
+    const result = (await res.json()) as { id?: string };
+
+    if (!result.id) {
+      throw new MetaApiError('Meta accepted the upload but returned no media id', res.status);
+    }
+
+    return { id: result.id };
   }
 
   private async throwIfError(

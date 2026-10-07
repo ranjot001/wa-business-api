@@ -30,7 +30,11 @@ export function buildMetaPayload(
   waMediaId?: string,
 ): MetaSendPayload {
   const content = asRecord(message.content);
-  const base = { messaging_product: 'whatsapp' as const, recipient_type: 'individual' as const, to };
+  const base = {
+    messaging_product: 'whatsapp' as const,
+    recipient_type: 'individual' as const,
+    to,
+  };
 
   switch (message.type) {
     case 'text': {

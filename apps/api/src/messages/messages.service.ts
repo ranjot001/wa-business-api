@@ -71,7 +71,12 @@ export class MessagesService {
     cursor?: string,
   ): Promise<Paginated<MessageView>> {
     await this.conversations.require(workspaceId, conversationId);
-    const { rows, nextCursor } = await this.messages.page(workspaceId, conversationId, limit, cursor);
+    const { rows, nextCursor } = await this.messages.page(
+      workspaceId,
+      conversationId,
+      limit,
+      cursor,
+    );
     return { data: rows.map(toMessageView), next_cursor: nextCursor };
   }
 

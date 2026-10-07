@@ -88,7 +88,11 @@ export class MessagesRepository extends WorkspaceScopedRepository {
    */
   async requeueFailed(workspaceId: string, id: string): Promise<boolean> {
     const result = await this.prisma.message.updateMany({
-      where: this.scope(workspaceId, { id, direction: 'outbound' as const, status: 'failed' as const }),
+      where: this.scope(workspaceId, {
+        id,
+        direction: 'outbound' as const,
+        status: 'failed' as const,
+      }),
       data: { status: 'queued', errorCode: null, errorMessage: null, waMessageId: null },
     });
     return result.count > 0;

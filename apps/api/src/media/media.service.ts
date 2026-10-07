@@ -41,7 +41,10 @@ export class MediaService {
    * leave a ready row pointing at nothing if the put failed; this order at
    * worst leaves an orphan object nobody references.
    */
-  async upload(workspaceId: string, file: UploadedMediaFile | undefined): Promise<UploadedMediaView> {
+  async upload(
+    workspaceId: string,
+    file: UploadedMediaFile | undefined,
+  ): Promise<UploadedMediaView> {
     if (!file || file.size === 0) {
       throw new BadRequestException({
         code: ERROR_CODES.BAD_REQUEST,

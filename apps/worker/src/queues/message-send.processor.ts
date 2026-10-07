@@ -219,7 +219,10 @@ async function resolveMetaMediaId(
 
   await prisma.media.update({ where: { id: media.id }, data: { waMediaId: id } });
 
-  logger.info({ mediaId: media.id, waMediaId: id, bytes: body.byteLength }, 'media uploaded to Meta');
+  logger.info(
+    { mediaId: media.id, waMediaId: id, bytes: body.byteLength },
+    'media uploaded to Meta',
+  );
 
   return id;
 }

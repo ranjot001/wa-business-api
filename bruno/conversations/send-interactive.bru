@@ -1,0 +1,48 @@
+meta {
+  name: Send Interactive
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{base_url}}/v1/conversations/{{conversation_id}}/messages
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "type": "interactive",
+    "interactive": {
+      "type": "button",
+      "body": { "text": "Are you still interested?" },
+      "action": {
+        "buttons": [
+          { "type": "reply", "reply": { "id": "yes", "title": "Yes" } },
+          { "type": "reply", "reply": { "id": "no", "title": "No" } }
+        ]
+      }
+    }
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  bru.setEnvVar("message_id", res.body.id);
+}
+
+docs {
+  Reply buttons (up to 3) or a list (up to 10 rows), in Meta's own shape. Meta's
+  limits are checked on the way in, so a 4th button or a 21 character title is a
+  400 here rather than a failed message later. Same window rule as text.
+}

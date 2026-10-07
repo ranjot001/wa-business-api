@@ -51,6 +51,16 @@ Auth column:
 | POST   | `/v1/webhooks/whatsapp`    | HMAC signature    | Delivery endpoint. Verifies `X-Hub-Signature-256`, stores the envelope, enqueues, returns 200 fast. |
 | POST   | `/v1/whatsapp/accounts/manual` | jwt + ws, owner | `{waba_id, phone_number_id, display_phone, access_token, verified_name?}`. Token stored encrypted.  |
 | GET    | `/v1/whatsapp/account`     | jwt + ws          | The workspace's connected number. Returns only a 4 character hint of the token, never the token.    |
+| GET    | `/v1/conversations`        | jwt + ws          | Cursor paginated, most recent first. `?status=&assigned=me\|unassigned\|all&q=&cursor=&limit=`. Includes contact and assignee. |
+| GET    | `/v1/conversations/:id`    | jwt + ws          | With contact and number, plus `window_expires_at` for the 24 hour window countdown.                 |
+| POST   | `/v1/conversations`        | jwt + ws          | `{contact_id}`. Find or create the open conversation on the workspace's number; reopens a resolved one. 200. |
+| POST   | `/v1/conversations/:id/read` | jwt + ws        | Sets `unread_count` to 0. Returns the conversation.                                                 |
+| GET    | `/v1/conversations/:id/messages` | jwt + ws    | Newest first, `?cursor=&limit=` (default 50). The cursor is the last message id of the page.        |
+| POST   | `/v1/conversations/:id/messages` | jwt + ws    | Send. Body is a union on `type`: text, image/video/audio/document, template, interactive. Stored queued, sent by the worker. 201. 409 `WINDOW_CLOSED` outside the window except for templates. |
+| GET    | `/v1/messages/:id`         | jwt + ws          | One message, with its status and, when failed, Meta's `error_code` and `error_message`.            |
+| POST   | `/v1/messages/:id/retry`   | jwt + ws          | Failed outbound only, else 409 `MESSAGE_NOT_RETRYABLE`. Requeues it. Window rule applies again.     |
+| POST   | `/v1/media/upload`         | jwt + ws          | Multipart, one file in `file`, max 16 MB. Stores to R2, returns `{media_id, mime_type, size_bytes}`. 201. 503 without R2. |
+| GET    | `/v1/media/:id/url`        | jwt + ws          | `{url, expires_at}`: a signed R2 url valid for 15 minutes.                                          |
 
 Add every new endpoint to this table and to the Bruno collection in `/bruno`.
 
@@ -112,6 +122,72 @@ Note that `upsert` in Prisma is a select followed by an insert, not one atomic
 statement, so concurrent jobs for the first message from a new contact can both
 try to insert. That unique violation is caught and the winner's row is read
 instead, rather than failing the job.
+
+## Sending messages
+
+`POST /v1/conversations/:id/messages` takes one of these bodies, validated by
+the zod schema `sendMessageSchema` in `@crm/shared` rather than class-validator,
+because a union keyed on one field is what zod expresses natively:
+
+```jsonc
+{ "type": "text", "text": "..." }
+{ "type": "image" | "video" | "audio" | "document", "media_id": "<our media uuid>", "caption"?: "...", "filename"?: "..." }
+{ "type": "template", "template_name": "hello_world", "language": "en_US", "components"?: [] }
+{ "type": "interactive", "interactive": { "type": "button" | "list", ... } }   // Meta's shape
+```
+
+Meta's own limits (3 reply buttons, 10 list rows, 20 character button titles,
+no caption on audio, filename on documents only) are checked here, so a send
+that Meta would reject later fails now with a 400 the agent can read.
+
+### The 24 hour window
+
+`isWindowOpen(contact)` in `src/conversations/window.ts` is
+`last_inbound_at != null && now - last_inbound_at < 24h`. Text, media and
+interactive sends outside it get 409 `WINDOW_CLOSED` with
+`details: { last_inbound_at, expires_at }`. Templates are always allowed, since
+reopening a closed window is what templates are for. A retry is checked again.
+
+### What happens after the 201
+
+1. The api stores the message as `queued`, moves the conversation's
+   `last_message_at` and preview in the same transaction, enqueues
+   `messages:message.send {messageId}` and publishes `message.created`. If
+   Redis refuses the job, the row is marked failed so it can be retried, and
+   the response is 503.
+2. The worker builds the Meta payload. For media it uploads the R2 object to
+   `POST /{phone_number_id}/media` on first use and caches Meta's id on the
+   media row (re-uploading after 29 days, since Meta keeps them for 30).
+3. Success sets `wa_message_id`, status `sent` and the contact's
+   `last_outbound_at`, and publishes `message.status`.
+4. The task 03 status webhooks move it on to `delivered`, `read` or `failed`,
+   forward only.
+
+Only a `queued` row is ever sent, so a duplicate job, or a retry of a job whose
+send already went through, sends nothing.
+
+### Retry classification
+
+In `apps/worker/src/whatsapp/send-errors.ts`:
+
+| Failure | Retried | Why |
+| ------- | ------- | --- |
+| Meta 5xx | yes, up to 3 times with backoff | Meta's own outage |
+| Meta 429 | yes | throttled: the same request works later |
+| Network error (fetch threw) | yes | Meta never answered |
+| Meta other 4xx | no | bad template, invalid number, closed window (131047), bad token: resending fails the same way |
+| Our own checks (missing media, R2 not configured) | no | nothing a retry can change |
+
+A message that will not be retried, or has used its last attempt, is marked
+`failed` with Meta's `error_code` and `error_message` (including Meta's
+`error_data.details`, which usually names the actual problem). A non retryable
+failure throws BullMQ's `UnrecoverableError`, which skips the remaining
+attempts.
+
+If Meta accepts the message but writing `sent` to the database then fails, the
+job is not retried, because the row would still be `queued` and a retry would
+send the customer the message twice. That case is logged with Meta's message
+id.
 
 ## Password reset tokens
 

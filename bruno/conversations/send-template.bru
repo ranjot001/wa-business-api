@@ -1,0 +1,41 @@
+meta {
+  name: Send Template
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{base_url}}/v1/conversations/{{conversation_id}}/messages
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "type": "template",
+    "template_name": "hello_world",
+    "language": "en_US",
+    "components": []
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  bru.setEnvVar("message_id", res.body.id);
+}
+
+docs {
+  Allowed with the 24 hour window closed. hello_world is the template every
+  Meta test number has. components carries header, body and button parameters
+  in Meta's shape and is passed through untouched.
+}

@@ -1,0 +1,25 @@
+meta {
+  name: List Messages
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/v1/conversations/{{conversation_id}}/messages?limit=50
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Newest first. Pass next_cursor back as ?cursor= for the page before.
+}

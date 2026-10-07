@@ -1,0 +1,40 @@
+meta {
+  name: List Conversations
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/conversations?assigned=all&limit=25
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  // Pick the most recent conversation for the requests below.
+  if (res.body.data && res.body.data.length > 0) {
+    bru.setEnvVar("conversation_id", res.body.data[0].id);
+    bru.setEnvVar("contact_id", res.body.data[0].contact.id);
+  }
+}
+
+docs {
+  Most recent activity first. Query parameters, all optional:
+
+  - status: open, pending or resolved
+  - assigned: me, unassigned or all (default all)
+  - q: matches the contact's name, WhatsApp profile name or number
+  - cursor, limit: cursor pagination, limit up to 100
+
+  Captures conversation_id and contact_id from the first row.
+}

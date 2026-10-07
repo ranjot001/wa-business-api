@@ -1,0 +1,27 @@
+meta {
+  name: Get Conversation
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/v1/conversations/{{conversation_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  The conversation with its contact and number. window_expires_at is when the
+  24 hour customer service window closes (null if the contact never wrote in).
+  After it, only templates can be sent.
+}

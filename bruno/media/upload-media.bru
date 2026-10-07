@@ -1,0 +1,37 @@
+meta {
+  name: Upload Media
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/v1/media/upload
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:multipart-form {
+  file: @file(set-a-file-here.jpg)
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  bru.setEnvVar("media_id", res.body.media_id);
+}
+
+docs {
+  Pick a file in the Body tab first. One file in the "file" field, at most
+  16 MB (413 PAYLOAD_TOO_LARGE above that). Stored in R2 and returned as
+  { media_id, mime_type, size_bytes }; captures media_id for Send Image.
+
+  503 SERVICE_UNAVAILABLE when the api has no R2_* variables.
+}

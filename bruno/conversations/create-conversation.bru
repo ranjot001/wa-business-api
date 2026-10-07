@@ -1,0 +1,39 @@
+meta {
+  name: Create Conversation
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/v1/conversations
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "contact_id": "{{contact_id}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}
+
+script:post-response {
+  bru.setEnvVar("conversation_id", res.body.id);
+}
+
+docs {
+  Find or create the open conversation for a contact on the workspace's number.
+  A resolved conversation is reopened. 200 either way.
+
+  409 WHATSAPP_NOT_CONNECTED when the workspace has no connected number.
+}

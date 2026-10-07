@@ -1,0 +1,27 @@
+meta {
+  name: Retry Message
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/v1/messages/{{message_id}}/retry
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  Failed outbound messages only: anything else is 409 MESSAGE_NOT_RETRYABLE.
+  Clears the error, sets it back to queued and enqueues a new send. The window
+  rule applies again, so a text whose window has since closed is 409.
+}

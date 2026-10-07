@@ -43,6 +43,19 @@ step, which is the practical way to replay a payload locally.
 To register a number locally, run `whatsapp / Connect Manual Account` with
 `meta_access_token` set to a real Meta token. It is owner only.
 
+## Sending messages
+
+1. **conversations / List Conversations** captures `conversation_id` and
+   `contact_id` from the most recent conversation. Text your test number from
+   your phone first, so there is one with an open window.
+2. **conversations / Send Text**, then **messages / Get Message** to watch it
+   move queued, sent, delivered, read. It captures `message_id`.
+3. For an image, run **media / Upload Media** with a file picked in the Body
+   tab (it captures `media_id`), then **conversations / Send Image**.
+4. **conversations / Send Template** sends `hello_world`, which works even with
+   the 24 hour window closed. Send Text with the window closed is 409.
+5. **messages / Retry Message** requeues a failed message.
+
 ## Notes
 
 - **auth / Refresh** works once per cookie. Running it twice in a row fails the

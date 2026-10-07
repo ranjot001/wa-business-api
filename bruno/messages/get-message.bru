@@ -1,0 +1,26 @@
+meta {
+  name: Get Message
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/v1/messages/{{message_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  accept: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+assert {
+  res.status: eq 200
+}
+
+docs {
+  One message. status is queued, sent, delivered, read or failed. A failed
+  outbound message carries Meta's error_code and error_message.
+}

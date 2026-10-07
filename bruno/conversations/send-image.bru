@@ -1,0 +1,43 @@
+meta {
+  name: Send Image
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{base_url}}/v1/conversations/{{conversation_id}}/messages
+  body: json
+  auth: none
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+  authorization: Bearer {{access_token}}
+  x-workspace-id: {{workspace_id}}
+}
+
+body:json {
+  {
+    "type": "image",
+    "media_id": "{{media_id}}",
+    "caption": "Sent from Bruno"
+  }
+}
+
+assert {
+  res.status: eq 201
+}
+
+script:post-response {
+  bru.setEnvVar("message_id", res.body.id);
+}
+
+docs {
+  media_id is ours, from media / Upload Media, not a Meta id. The worker uploads
+  the file to Meta on first send and reuses Meta's id after that.
+
+  type can be image, video, audio or document, and must fit the file: an image
+  type needs an image/* file. audio takes no caption; only document takes a
+  filename. Same window rule as text.
+}

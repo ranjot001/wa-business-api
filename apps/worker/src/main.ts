@@ -6,6 +6,7 @@ import { createLogger } from './logger';
 import { createRealtimePublisher } from './realtime';
 import { createStorage } from './storage';
 import { createMediaProcessor } from './queues/media.processor';
+import { createMessageSendProcessor } from './queues/message-send.processor';
 import { createSystemProcessor } from './queues/system.processor';
 import { createWebhookProcessor } from './queues/webhook.processor';
 import { createMediaQueue } from './whatsapp/media-queue';
@@ -52,6 +53,10 @@ async function main(): Promise<void> {
       concurrency: env.WORKER_CONCURRENCY,
     }),
     new Worker(QUEUES.MEDIA, createMediaProcessor({ logger, storage, env }), {
+      connection,
+      concurrency: env.WORKER_CONCURRENCY,
+    }),
+    new Worker(QUEUES.MESSAGES, createMessageSendProcessor({ logger, realtime, storage, env }), {
       connection,
       concurrency: env.WORKER_CONCURRENCY,
     }),

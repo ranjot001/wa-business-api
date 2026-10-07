@@ -16,6 +16,8 @@ export interface MetaErrorBody {
     code?: number;
     error_subcode?: number;
     fbtrace_id?: string;
+    /** Where Meta puts the specific reason, e.g. which parameter is invalid. */
+    error_data?: { details?: string };
   };
 }
 
@@ -213,12 +215,19 @@ export class MetaClient {
         fbtraceId: error?.fbtrace_id,
         requestId,
         metaMessage: error?.message,
+        metaDetails: error?.error_data?.details,
       },
       `Meta ${operation} failed`,
     );
 
+    // The top level message is often generic ("(#100) Invalid parameter") and
+    // the useful part is in error_data.details, so keep both: this text is
+    // what ends up in messages.error_message for the agent to read.
+    const summary = error?.message ?? `Meta ${operation} failed with ${res.status}`;
+    const details = error?.error_data?.details;
+
     throw new MetaApiError(
-      error?.message ?? `Meta ${operation} failed with ${res.status}`,
+      details && details !== summary ? `${summary}: ${details}` : summary,
       res.status,
       error?.code,
       error?.error_subcode,

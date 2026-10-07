@@ -1,4 +1,4 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { Env } from './env';
 
 /**
@@ -6,10 +6,11 @@ import type { Env } from './env';
  *
  * R2 is S3 compatible but not S3: it wants a fixed region of "auto" and an
  * account specific endpoint, and it does not support every S3 feature. Only
- * PutObject is used here.
+ * PutObject and GetObject are used here.
  */
 export interface ObjectStorage {
   put(key: string, body: Buffer, contentType?: string): Promise<void>;
+  get(key: string): Promise<Buffer>;
   readonly configured: boolean;
 }
 
@@ -23,6 +24,9 @@ export function createStorage(env: Env): ObjectStorage {
     return {
       configured: false,
       put(): Promise<void> {
+        return Promise.reject(new Error('R2 is not configured: set R2_* in the environment'));
+      },
+      get(): Promise<Buffer> {
         return Promise.reject(new Error('R2 is not configured: set R2_* in the environment'));
       },
     };
@@ -48,6 +52,15 @@ export function createStorage(env: Env): ObjectStorage {
           ...(contentType ? { ContentType: contentType } : {}),
         }),
       );
+    },
+    async get(key): Promise<Buffer> {
+      const result = await client.send(new GetObjectCommand({ Bucket: R2_BUCKET, Key: key }));
+
+      if (!result.Body) {
+        throw new Error(`R2 object ${key} has no body`);
+      }
+
+      return Buffer.from(await result.Body.transformToByteArray());
     },
   };
 }

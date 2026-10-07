@@ -79,6 +79,14 @@ export const envSchema = z.object({
    * anyone who knows the url.
    */
   META_APP_SECRET: z.string().min(1),
+
+  // Cloudflare R2, where uploaded media is stored. Optional, like the worker's,
+  // so local development and CI boot without object storage; the media routes
+  // answer 503 until all four are set.
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

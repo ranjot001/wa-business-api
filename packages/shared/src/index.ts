@@ -5,4 +5,5 @@ export * from './meta';
 export * from './outbound';
 export * from './preview';
 export * from './queues';
+export * from './storage';
 export * from './whatsapp';

@@ -19,24 +19,13 @@ const textMessage = z.object({
   text: z.string().trim().min(1).max(4096),
 });
 
-const mediaMessage = z
-  .object({
-    type: z.enum(['image', 'video', 'audio', 'document']),
-    /** Our media id, as returned by POST /v1/media/upload. Not Meta's. */
-    media_id: z.string().uuid(),
-    caption: z.string().max(1024).optional(),
-    filename: z.string().min(1).max(240).optional(),
-  })
-  // Meta rejects a caption on audio and ignores a filename on anything but a
-  // document, so both are refused here instead of silently dropped.
-  .refine((value) => value.type !== 'audio' || value.caption === undefined, {
-    message: 'audio messages cannot have a caption',
-    path: ['caption'],
-  })
-  .refine((value) => value.type === 'document' || value.filename === undefined, {
-    message: 'filename is only allowed on documents',
-    path: ['filename'],
-  });
+const mediaMessage = z.object({
+  type: z.enum(['image', 'video', 'audio', 'document']),
+  /** Our media id, as returned by POST /v1/media/upload. Not Meta's. */
+  media_id: z.string().uuid(),
+  caption: z.string().max(1024).optional(),
+  filename: z.string().min(1).max(240).optional(),
+});
 
 const templateMessage = z.object({
   type: z.literal('template'),
@@ -131,15 +120,30 @@ const interactiveMessage = z.object({
   interactive: z.discriminatedUnion('type', [replyButtons, listMessage]),
 });
 
-// The media branch carries refinements, which makes it a ZodEffects that
-// z.discriminatedUnion will not accept, so this is a plain union. The type
-// literals are disjoint, so exactly one branch can ever match.
-export const sendMessageSchema = z.union([
-  textMessage,
-  mediaMessage,
-  templateMessage,
-  interactiveMessage,
-]);
+export const sendMessageSchema = z
+  .discriminatedUnion('type', [textMessage, mediaMessage, templateMessage, interactiveMessage])
+  // Meta rejects a caption on audio and ignores a filename on anything but a
+  // document, so both are refused here instead of silently dropped. Checked
+  // after the union, because a refined branch cannot be a union member.
+  .superRefine((value, ctx) => {
+    if (value.type === 'audio' && value.caption !== undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['caption'],
+        message: 'audio messages cannot have a caption',
+      });
+    }
+    if (
+      (value.type === 'image' || value.type === 'video' || value.type === 'audio') &&
+      value.filename !== undefined
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['filename'],
+        message: 'filename is only allowed on documents',
+      });
+    }
+  });
 
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 export type SendMediaMessageInput = z.infer<typeof mediaMessage>;

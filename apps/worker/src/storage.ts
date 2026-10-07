@@ -52,7 +52,4 @@ export function createStorage(env: Env): ObjectStorage {
   };
 }
 
-/** Where one workspace's media lives. */
-export function mediaKey(workspaceId: string, mediaId: string): string {
-  return `ws/${workspaceId}/media/${mediaId}`;
-}
+export { mediaKey } from '@crm/shared';

@@ -9,10 +9,14 @@ import { validateEnv, type Env } from './config/env';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { ConversationsModule } from './conversations/conversations.module';
 import { HealthModule } from './health/health.module';
 import { InvitationsModule } from './invitations/invitations.module';
+import { MediaModule } from './media/media.module';
 import { MembersModule } from './members/members.module';
 import { MeModule } from './me/me.module';
+import { MessagesModule } from './messages/messages.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { RedisModule } from './redis/redis.module';
 import { WebhooksModule } from './webhooks/webhooks.module';
 import { WhatsAppModule } from './whatsapp/whatsapp.module';
@@ -66,6 +70,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     // routes only, not globally: the inbox polls far harder than this.
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 10 }]),
     RedisModule,
+    RealtimeModule,
     HealthModule,
     AuditModule,
     AuthModule,
@@ -75,6 +80,9 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     InvitationsModule,
     WhatsAppModule,
     WebhooksModule,
+    ConversationsModule,
+    MessagesModule,
+    MediaModule,
   ],
   providers: [
     // Every route needs an access token unless it is marked @Public().
